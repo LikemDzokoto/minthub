@@ -54,8 +54,12 @@ contract MintHub is ERC721URIStorage {
      /* =========== CONSTRUCTOR ============ */
 
 
-    constructor() {
-        owner = payable(msg.sender);
+    // constructor() {
+    //     owner = payable(msg.sender);
+    // }
+
+    constructor() ERC721("MintHub Token", "MHT") {
+      owner = payable(msg.sender);
     }
 
 
