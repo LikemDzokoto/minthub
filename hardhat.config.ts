@@ -1,6 +1,10 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
 const config: HardhatUserConfig = {
   solidity: {
     compilers:[
@@ -27,7 +31,7 @@ const config: HardhatUserConfig = {
   baseSepolia: {
     url: "https://sepolia.base.org",
     chainId: 84532,
-    accounts: [process.env.PRIVATE_KEY!],
+    accounts: [process.env.PRIVATE_KEY as string],
   },
 },
 
