@@ -74,6 +74,12 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     );
 
 
+    event mintHubItemSold(
+      uint256  indexed nftId,
+      address indexed seller,
+      address indexed buyer,
+      uint256 price 
+    );
     event AuctionCreated(uint256 indexed nftId , address indexed seller , uint256 startingBid , uint256 endTime);
     
     event BidPlaced(uint256 indexed nftId , address indexed bidder , uint256 amount );
@@ -149,10 +155,56 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     }
 
 
-    function resellToken() public payable {}
+
+    //allows nft  to resold after initial purchase
+    function resellToken(uint256 price , uint256 nftId) public payable {
+      require(idToMintHubItem[nftId].owner == msg.sender, "only nft owner can perform this function");
+      require(msg.value == listingPrice, "Price must be equal to listing price");
+
+      idToMintHubItem[nftId].sold = false;
+      idToMintHubItem[nftId].price = price;
+      idToMintHubItem[nftId].seller = payable(msg.sender);
+      idToMintHubItem[nftId].owner = payable(address(this));
+
+      _soldItems.decrement();
+      _transfer(msg.sender,address(this), nftId);
+    }
 
 
-    function createMintHubItemSale() public payable nonReentrant {}
+    function createMintHubItemSale(uint256 nftId) public payable nonReentrant {
+      mintHubItem storage item = idToMintHubItem[nftId];
+
+      uint256 price = item.price;
+      address OriginalSeller = item.seller;
+      uint256 royalty = (price * royalties[nftId]) / 1000;
+
+      require(msg.value == price , "kindly submit the asking price to sucessfully complete  the purchase");
+
+
+      //updated item details
+      item.owner = payable(msg.sender);
+      item.sold = true ;
+      item.seller = payable(address(0));  // Reset seller to zero address
+
+      _soldItems.increment();
+
+      _transfer(address(this), msg.sender, nftId);
+
+      emit mintHubItemSold(nftId , OriginalSeller, msg.sender, price);
+
+
+
+    // Pay royalty to the creator
+    (bool royaltyPaid, ) = payable(creators[nftId]).call{value: royalty}("");
+    require(royaltyPaid, "Royalty payment failed");
+
+    // Pay the remaining amount to the original seller
+    (bool sellerPaid, ) = payable(OriginalSeller).call{value: msg.value - royalty}("");
+    require(sellerPaid, "Payment to seller failed");
+}
+
+
+
 
 
 
