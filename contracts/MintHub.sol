@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract MintHub is ERC721URIStorage , ReentrancyGuard{
      using Counters for Counters.Counter;
-     Counters.Counter private _nftId;
+     Counters.Counter private _nftIds;
      Counters.Counter private _soldItems;
 
 
@@ -32,8 +32,6 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
     struct mintHubItem{
         uint256 nftId;
-        uint256 tokenId;
-        address payable creator;
         address payable seller;
         address payable owner;
         uint256 price;
@@ -69,8 +67,6 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       /* =========== EVENTS ============ */
       event MintHubItemCreated(
         uint256 indexed nftId,
-        address indexed nftContract,
-        address creator,
         address seller,
         address owner,
         uint256 price,
@@ -112,11 +108,45 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
     /* =========== MAIN  FUNCTIONS ============ */
 
-    function createToken() public payable returns(uint256){}
+
+    //create a new NFT and list it on MintHub
+    function createToken(string memory tokenURI , uint256 price , uint256 royalty) public payable returns(uint256){
+      //validation to make sure royalty point does not exceed 100% , expressed in basis points
+      require(royalty <= 10000 , "Royalty must be 100% or less " );
+
+      _nftIds.increment();
+
+      uint256 newNftId = _nftIds.current();
+      _safeMint(msg.sender , newNftId);
+      _setTokenURI(newNftId , tokenURI);
+
+      creators[newNftId] = msg.sender;
+      royalties[newNftId]  = royalty;
+
+      createMintHubItem(newNftId , price );
+      return newNftId;
+
+    }
 
 
 
-    function createMintHubItem() private {}
+    function createMintHubItem(uint256 nftId, uint256 price) private {
+      require(price > 0 , "nft price must be at least one wei or more");
+      require(msg.value == listingPrice , "nft price must be equal to listing Price");
+
+
+     idToMintHubItem[nftId] =  mintHubItem(
+      nftId,
+      payable(msg.sender),
+      payable(address(this)),
+      price,
+      false
+     );
+
+     _transfer(msg.sender, address(this), nftId);
+     emit MintHubItemCreated(nftId,  msg.sender,address(this), price, false);
+
+    }
 
 
     function resellToken() public payable {}
@@ -146,6 +176,13 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
     function fetchMintHubItem() public view returns(mintHubItem[] memory){}
 
+    function fetchMyNfts() public view  returns(mintHubItem[] memory){}
+
+
+
+    function fetchListedItems() public view returns (mintHubItem[] memory){}
+
 
     
 }
+
