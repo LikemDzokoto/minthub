@@ -56,7 +56,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
      /* =========== MAPPINGS ============ */
 
      mapping(uint256 => mintHubItem) private idToMintHubItem ;
-     mapping(uint256 => Auction) private auction;
+     mapping(uint256 => Auction) private auctions;
 
 
      //Royalties 
@@ -210,31 +210,176 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
     /* =========== AUCTION FUNCTIONS ============ */
 
-    function createAuction() public {
+    function createAuction(uint256 nftId , uint256 startingBid , uint256 duration) public {
+      require(idToMintHubItem[nftId].owner == msg.sender, "Only the owner of the nft can create an auction ");
+      // Ensure that there is no active auction for this nft
+      require(!auctions[nftId].active, "Auction already active");
 
+      // Transfer the NFT from the seller to the marketplace contract
+
+    _transfer(msg.sender, address(this), nftId);
+
+
+    // Create a new auction
+
+    auctions[nftId] = Auction({
+
+        nftId: nftId,
+
+        seller: payable(msg.sender),
+
+        startingBid: startingBid,
+
+        highestBid: 0,
+
+        highestBidder: payable(address(0)),
+
+        endTime: block.timestamp + duration,
+
+        active: true
+
+    });
+
+    emit AuctionCreated(nftId, msg.sender, startingBid, block.timestamp + duration);
+
+  }
+
+
+
+    
+
+    function placeBid(uint256 nftId) public payable nonReentrant{
+      Auction storage auction = auctions[nftId];
+      require(auction.active, "Auction is not active");
+
+
+        require(block.timestamp < auction.endTime, "Auction has ended");
+        require(msg.value > auction.highestBid, "Bid must be higher than the current highest bid");
+
+        if (auction.highestBid > 0) {
+            auction.highestBidder.transfer(auction.highestBid);
+        }
+
+        auction.highestBid = msg.value;
+        auction.highestBidder = payable(msg.sender);
+
+        emit BidPlaced(nftId, msg.sender, msg.value);
     }
 
-    function placeBid() public payable nonReentrant{}
 
 
-    function finalizeAuction() public nonReentrant(){}
+
+    
+
+    function finalizeAuction(uint256 nftId) public nonReentrant(){
+      Auction storage auction = auctions[nftId];
+      require(auction.nftId == nftId , "Auction does not exist");
+      require(block.timestamp >= auction.endTime, "Auction has not ended yet");
+      require(auction.active, "Auction is not active");
 
 
-    function cancelAuction() public {}  
+      auction.active = false;
+
+        if (auction.highestBid > 0) {
+            uint256 royalty = (auction.highestBid * royalties[nftId]) / 10000;
+            auction.seller.transfer(auction.highestBid - royalty);
+            payable(creators[nftId]).transfer(royalty);
+
+            _transfer(address(this), auction.highestBidder, nftId);
+        } else {
+            _transfer(address(this), auction.seller, nftId);
+        }
+
+        emit AuctionFinalized(nftId, auction.highestBidder, auction.highestBid);
+    }
+    
+
+
+    function cancelAuction(uint256 nftId) public {
+      Auction storage auction = auctions[nftId];
+      require(auction.active ,"Auction is not active");
+      require(auction.seller == msg.sender, "Only the seller can cancel the auction");
+      require(auction.highestBid == 0 , "cannot cancel an auction with bids");
+
+      auction.active = false;
+      _transfer(address(this), auction.seller, nftId);
+      emit AuctionCancelled(nftId, auction.seller);
+    }  
 
 
 
     /* =========== FETCH  FUNCTIONS ============ */
 
-    function fetchMintHubItem() public view returns(mintHubItem[] memory){}
+    function fetchMintHubItem() public view returns(mintHubItem[] memory){
+       uint256 nftCount = _nftIds.current();
+        uint256 unsoldnftCount = _nftIds.current() - _soldItems.current();
+        uint256 currentIndex = 0;
 
-    function fetchMyNfts() public view  returns(mintHubItem[] memory){}
-
-
-
-    function fetchListedItems() public view returns (mintHubItem[] memory){}
-
+        mintHubItem[] memory nftItems = new  mintHubItem[](unsoldnftCount);
+        for (uint256 i = 0; i <nftCount; i++) {
+            if ( idToMintHubItem[i + 1].owner == address(this)) {
+                uint256 currentId = i + 1;
+               mintHubItem storage currentItem = idToMintHubItem[currentId];
+                nftItems[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+             return nftItems;
+    }
 
     
+
+
+
+    function fetchMyNfts() public view  returns(mintHubItem[] memory){
+       uint256 totalnftCount = _nftIds.current();
+        uint256 nftCount = 0;
+        uint256 currentIndex = 0;
+
+        for (uint256 i = 0; i < totalnftCount; i++) {
+            if (idToMintHubItem[i + 1].owner == msg.sender) {
+                nftCount += 1;
+            }
+        }
+
+        mintHubItem[] memory nftItems = new mintHubItem[](nftCount);
+        for (uint256 i = 0; i < totalnftCount; i++) {
+            if (idToMintHubItem[i + 1].owner == msg.sender) {
+                uint256 currentId = i + 1;
+               mintHubItem storage currentItem = idToMintHubItem[currentId];
+                nftItems[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+        return nftItems;
+    }
+
+
+
+    function fetchListedItems() public view returns (mintHubItem[] memory){
+      uint256 totalnftCount = _nftIds.current();
+        uint256 nftCount = 0;
+        uint256 currentIndex = 0;
+
+        for (uint256 i = 0; i < totalnftCount; i++) {
+            if (idToMintHubItem[i + 1].seller == msg.sender) {
+                nftCount += 1;
+            }
+        }
+
+        mintHubItem[] memory nftItems = new mintHubItem[](nftCount);
+
+        
+        for (uint256 i = 0; i < totalnftCount; i++) {
+            if (idToMintHubItem[i + 1].seller == msg.sender) {
+                uint256 currentId = i + 1;
+               mintHubItem storage currentItem = idToMintHubItem[currentId];
+                nftItems[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+        return nftItems;
+
+    }
 }
 
