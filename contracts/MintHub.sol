@@ -19,7 +19,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     address payable private owner;
 
 
-    //assumptive listing price to be 
+    //assumptive listing price to be changed
 
     uint256 listingPrice = 0.001 ether;
 
@@ -161,12 +161,20 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       require(idToMintHubItem[nftId].owner == msg.sender, "only nft owner can perform this function");
       require(msg.value == listingPrice, "Price must be equal to listing price");
 
+
+      // Check if the item was previously sold
+    if(idToMintHubItem[nftId].sold){
+      _soldItems.decrement(); //only decrement only if nft was sold previously
+      }
+
+      //update the nft details for resale
       idToMintHubItem[nftId].sold = false;
       idToMintHubItem[nftId].price = price;
       idToMintHubItem[nftId].seller = payable(msg.sender);
       idToMintHubItem[nftId].owner = payable(address(this));
 
-      _soldItems.decrement();
+
+      //transfer the nft back to minthub contract
       _transfer(msg.sender,address(this), nftId);
     }
 
@@ -176,9 +184,12 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
       uint256 price = item.price;
       address OriginalSeller = item.seller;
-      uint256 royalty = (price * royalties[nftId]) / 1000;
+      uint256 royalty = (price * royalties[nftId]) /10_000;
 
       require(msg.value == price , "kindly submit the asking price to sucessfully complete  the purchase");
+
+      //check  if the nft is available for sale
+      require(item.owner == address(this),"nft is not available for sale");
 
 
       //updated item details
@@ -301,6 +312,10 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       require(auction.seller == msg.sender, "Only the seller can cancel the auction");
       require(auction.highestBid == 0 , "cannot cancel an auction with bids");
 
+      //check if the auction has already ended 
+      require(block.timestamp < auction.endTime, "cannot cancel an Auction that has ended");
+
+
       auction.active = false;
       _transfer(address(this), auction.seller, nftId);
       emit AuctionCancelled(nftId, auction.seller);
@@ -319,7 +334,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
         for (uint256 i = 0; i <nftCount; i++) {
             if ( idToMintHubItem[i + 1].owner == address(this)) {
                 uint256 currentId = i + 1;
-               mintHubItem storage currentItem = idToMintHubItem[currentId];
+               mintHubItem memory currentItem = idToMintHubItem[currentId];
                 nftItems[currentIndex] = currentItem;
                 currentIndex += 1;
             }
@@ -346,7 +361,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
         for (uint256 i = 0; i < totalnftCount; i++) {
             if (idToMintHubItem[i + 1].owner == msg.sender) {
                 uint256 currentId = i + 1;
-               mintHubItem storage currentItem = idToMintHubItem[currentId];
+               mintHubItem memory currentItem = idToMintHubItem[currentId];
                 nftItems[currentIndex] = currentItem;
                 currentIndex += 1;
             }
@@ -369,11 +384,11 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
         mintHubItem[] memory nftItems = new mintHubItem[](nftCount);
 
-        
+
         for (uint256 i = 0; i < totalnftCount; i++) {
             if (idToMintHubItem[i + 1].seller == msg.sender) {
                 uint256 currentId = i + 1;
-               mintHubItem storage currentItem = idToMintHubItem[currentId];
+               mintHubItem memory currentItem = idToMintHubItem[currentId];
                 nftItems[currentIndex] = currentItem;
                 currentIndex += 1;
             }
