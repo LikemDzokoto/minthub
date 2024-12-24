@@ -84,6 +84,8 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     
     event BidPlaced(uint256 indexed nftId , address indexed bidder , uint256 amount );
 
+    event AuctionExtended(uint256 indexed nftId, uint256 newEndTime);
+
     event AuctionFinalized(uint256 indexed nftId , address indexed winner , uint256 amount);
 
     event AuctionCancelled(uint256 indexed nftId , address indexed seller);
@@ -191,6 +193,11 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       //check  if the nft is available for sale
       require(item.owner == address(this),"nft is not available for sale");
 
+      //check if nft already sold
+      require(item.sold == false,"nft is not available for sale");
+
+
+
 
       //updated item details
       item.owner = payable(msg.sender);
@@ -258,10 +265,9 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     function placeBid(uint256 nftId) public payable nonReentrant{
       Auction storage auction = auctions[nftId];
       require(auction.active, "Auction is not active");
-
-
-        require(block.timestamp < auction.endTime, "Auction has ended");
-        require(msg.value > auction.highestBid, "Bid must be higher than the current highest bid");
+      require(block.timestamp < auction.endTime, "Auction has ended");
+      require(msg.value > auction.highestBid, "Bid must be higher than the current highest bid");
+      require(msg.value > 0 , "Bid must be greater than 0");
         
 
       //buffer time to avoid snipping 
@@ -273,6 +279,8 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       // Check if the auction is ending soon and extend the end time if necessary
       if (auction.endTime - block.timestamp < bufferTime) {
           auction.endTime += bufferTime; // Extend the auction by 2 minutes
+
+          emit AuctionExtended(nftId, auction.endTime);
           }
 
 
@@ -300,9 +308,18 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       auction.active = false;
 
         if (auction.highestBid > 0) {
-            uint256 royalty = (auction.highestBid * royalties[nftId]) / 10000;
-            auction.seller.transfer(auction.highestBid - royalty);
-            payable(creators[nftId]).transfer(royalty);
+            uint256 royalty = (auction.highestBid * royalties[nftId]) / 10_000;
+            // auction.seller.transfer(auction.highestBid - royalty);
+            // payable(creators[nftId]).transfer(royalty);
+
+
+            (bool sellerPaid,) = auction.seller.call{value: auction.highestBid - royalty}("");
+            require(sellerPaid, "Seller payment failed");
+
+
+            (bool royaltyPaid, ) = payable(creators[nftId]).call{value:royalty}("");
+            require(royaltyPaid, "Royalty payment failed"); 
+            
 
             _transfer(address(this), auction.highestBidder, nftId);
         } else {
