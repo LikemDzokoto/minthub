@@ -216,9 +216,6 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
 
-
-
-
     /* =========== AUCTION FUNCTIONS ============ */
 
     function createAuction(uint256 nftId , uint256 startingBid , uint256 duration) public {
@@ -257,8 +254,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
 
-    
-
+  
     function placeBid(uint256 nftId) public payable nonReentrant{
       Auction storage auction = auctions[nftId];
       require(auction.active, "Auction is not active");
@@ -266,21 +262,33 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
         require(block.timestamp < auction.endTime, "Auction has ended");
         require(msg.value > auction.highestBid, "Bid must be higher than the current highest bid");
+        
 
-        if (auction.highestBid > 0) {
-            auction.highestBidder.transfer(auction.highestBid);
-        }
+      //buffer time to avoid snipping 
+      uint256 bufferTime = 2 minutes;
+
+      address payable previousBidder = auction.highestBidder;
+      uint256 previousBid = auction.highestBid;
+
+      // Check if the auction is ending soon and extend the end time if necessary
+      if (auction.endTime - block.timestamp < bufferTime) {
+          auction.endTime += bufferTime; // Extend the auction by 2 minutes
+          }
+
 
         auction.highestBid = msg.value;
         auction.highestBidder = payable(msg.sender);
+        
+        if(previousBid > 0){
+          (bool refunded, ) = previousBidder.call{value:previousBid}("");
+          require(refunded, "Refund to previous Bidder failed");
+        }
+       
 
         emit BidPlaced(nftId, msg.sender, msg.value);
     }
 
 
-
-
-    
 
     function finalizeAuction(uint256 nftId) public nonReentrant(){
       Auction storage auction = auctions[nftId];
