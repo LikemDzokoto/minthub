@@ -80,6 +80,13 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       address indexed buyer,
       uint256 price 
     );
+
+    event tokenResale(
+      uint256 indexed nftId,
+      address indexed buyer,
+      uint256 price
+    );
+
     event AuctionCreated(uint256 indexed nftId , address indexed seller , uint256 startingBid , uint256 endTime);
     
     event BidPlaced(uint256 indexed nftId , address indexed bidder , uint256 amount );
@@ -111,6 +118,10 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
     function updateListingPricing(uint256 _listingPrice) public onlyOwner{
       listingPrice = _listingPrice;
+    }
+
+    function getAuction(uint256 nftId) public view returns(Auction memory) {
+      return auctions[nftId];
     } 
 
 
@@ -178,6 +189,8 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
       //transfer the nft back to minthub contract
       _transfer(msg.sender,address(this), nftId);
+      
+      emit tokenResale(nftId, msg.sender, price);
     }
 
 
