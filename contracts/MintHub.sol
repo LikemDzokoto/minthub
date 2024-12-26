@@ -24,8 +24,6 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     uint256 listingPrice = 0.001 ether;
 
 
-
-
    /* =========== STRUCTS ============ */
 
 
@@ -120,6 +118,10 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       listingPrice = _listingPrice;
     }
 
+    function getMintHubItem(uint256 nftId) public view returns (mintHubItem memory) {
+    return idToMintHubItem[nftId];
+  }
+
     function getAuction(uint256 nftId) public view returns(Auction memory) {
       return auctions[nftId];
     } 
@@ -142,6 +144,8 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       creators[newNftId] = msg.sender;
       royalties[newNftId]  = royalty;
 
+    
+
       createMintHubItem(newNftId , price );
       return newNftId;
 
@@ -154,13 +158,13 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       require(msg.value == listingPrice , "nft price must be equal to listing Price");
 
 
-     idToMintHubItem[nftId] =  mintHubItem(
-      nftId,
-      payable(msg.sender),
-      payable(address(this)),
-      price,
-      false
-     );
+     idToMintHubItem[nftId] =  mintHubItem({
+      nftId: nftId,
+      seller: payable(msg.sender),
+      owner : payable(address(this)),
+      price: price,
+      sold: false
+    });
 
      _transfer(msg.sender, address(this), nftId);
      emit MintHubItemCreated(nftId,  msg.sender,address(this), price, false);
@@ -198,19 +202,15 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       mintHubItem storage item = idToMintHubItem[nftId];
 
       uint256 price = item.price;
-      address OriginalSeller = item.seller;
+      address OriginalSeller = item.seller; 
       uint256 royalty = (price * royalties[nftId]) /10_000;
 
-      require(msg.value == price , "kindly submit the asking price to sucessfully complete  the purchase");
+      require(msg.value == price , "incorrect pricing");
 
       //check  if the nft is available for sale
       require(item.owner == address(this),"nft is not available for sale");
 
-      //check if nft already sold
-      require(item.sold == false,"nft is not available for sale");
-
-
-
+      require(!item.sold,"NFT has already been sold");
 
       //updated item details
       item.owner = payable(msg.sender);
@@ -239,7 +239,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     /* =========== AUCTION FUNCTIONS ============ */
 
     function createAuction(uint256 nftId , uint256 startingBid , uint256 duration) public {
-      require(idToMintHubItem[nftId].owner == msg.sender, "Only the owner of the nft can create an auction ");
+     require(idToMintHubItem[nftId].owner == msg.sender, "Only the current owner can create an auction");
       // Ensure that there is no active auction for this nft
       require(!auctions[nftId].active, "Auction already active");
 
@@ -363,7 +363,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
     /* =========== FETCH  FUNCTIONS ============ */
 
-    function fetchMintHubItem() public view returns(mintHubItem[] memory){
+    function fetchMintHubItems() public view returns(mintHubItem[] memory){
        uint256 nftCount = _nftIds.current();
         uint256 unsoldnftCount = _nftIds.current() - _soldItems.current();
         uint256 currentIndex = 0;
