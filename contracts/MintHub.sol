@@ -176,6 +176,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     //allows nft  to resold after initial purchase
     function resellToken(uint256 price , uint256 nftId) public payable {
       require(idToMintHubItem[nftId].owner == msg.sender, "only nft owner can perform this function");
+      // require(ownerOf(nftId) == msg.sender, "Only the current owner can resell this token");
       require(msg.value == listingPrice, "Price must be equal to listing price");
 
 
@@ -243,8 +244,10 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       // Ensure that there is no active auction for this nft
       require(!auctions[nftId].active, "Auction already active");
 
-      // Transfer the NFT from the seller to the marketplace contract
+      require(startingBid > 0 , "startingBidd must be greater than zero");
+      require(duration > 0, "duration of auction is not valid");
 
+      // Transfer the NFT from the seller to the marketplace contract
     _transfer(msg.sender, address(this), nftId);
 
 
