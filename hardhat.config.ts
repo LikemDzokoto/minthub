@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-deploy";
 
 import * as dotenv from "dotenv";
 
@@ -53,7 +54,14 @@ etherscan: {
   ]
 
 
-}
+},
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    deploy: "./deploy",
+    artifacts: "./artifacts",
+  },
 }
 
 
