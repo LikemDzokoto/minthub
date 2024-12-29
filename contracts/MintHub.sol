@@ -175,14 +175,14 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
     //allows nft  to resold after initial purchase
     function resellToken(uint256 price , uint256 nftId) public payable {
-      require(idToMintHubItem[nftId].owner == msg.sender, "only nft owner can perform this function");
-      // require(ownerOf(nftId) == msg.sender, "Only the current owner can resell this token");
+      // require(idToMintHubItem[nftId].owner == msg.sender, "only nft owner can perform this function");
+      require(ownerOf(nftId) == msg.sender, "Only the current owner can resell this token");
       require(msg.value == listingPrice, "Price must be equal to listing price");
 
 
       // Check if the item was previously sold
     if(idToMintHubItem[nftId].sold){
-      _soldItems.decrement(); //only decrement only if nft was sold previously
+      // _soldItems.decrement(); //only decrement only if nft was sold previously
       }
 
       //update the nft details for resale
@@ -240,12 +240,17 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     /* =========== AUCTION FUNCTIONS ============ */
 
     function createAuction(uint256 nftId , uint256 startingBid , uint256 duration) public {
-     require(idToMintHubItem[nftId].owner == msg.sender, "Only the current owner can create an auction");
-      // Ensure that there is no active auction for this nft
+    //  require(idToMintHubItem[nftId].owner == msg.sender ||idToMintHubItem[nftId].seller  == msg.sender , "Only the current owner can create an auction");
+      // Ensure that there is no active auction for this 
+      require(ownerOf(nftId) == msg.sender , "only  owner  can create an auction");
+    
+
       require(!auctions[nftId].active, "Auction already active");
 
       require(startingBid > 0 , "startingBidd must be greater than zero");
       require(duration > 0, "duration of auction is not valid");
+
+      require(isApprovedForAll(msg.sender, address(this)) || getApproved(nftId) == address(this), "Marketplace not approved to transfer NFT");
 
       // Transfer the NFT from the seller to the marketplace contract
     _transfer(msg.sender, address(this), nftId);
@@ -279,6 +284,9 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
   
     function placeBid(uint256 nftId) public payable nonReentrant{
+      require(ownerOf(nftId) == msg.sender , "only  owner  can place bid");
+      require(isApprovedForAll(msg.sender, address(this)) || getApproved(nftId) == address(this), "Marketplace not approved to transfer NFT");
+
       Auction storage auction = auctions[nftId];
       require(auction.active, "Auction is not active");
       require(block.timestamp < auction.endTime, "Auction has ended");
@@ -315,6 +323,9 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
     function finalizeAuction(uint256 nftId) public nonReentrant(){
+      require(ownerOf(nftId) == msg.sender , "only  owner  can finalize auction");
+      require(isApprovedForAll(msg.sender, address(this)) || getApproved(nftId) == address(this), "Marketplace not approved to transfer NFT");
+
       Auction storage auction = auctions[nftId];
       require(auction.nftId == nftId , "Auction does not exist");
       require(block.timestamp >= auction.endTime, "Auction has not ended yet");
@@ -348,6 +359,7 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
     function cancelAuction(uint256 nftId) public {
+      require(ownerOf(nftId) == msg.sender , "only  owner  can cancel  an auction");
       Auction storage auction = auctions[nftId];
       require(auction.active ,"Auction is not active");
       require(auction.seller == msg.sender, "Only the seller can cancel the auction");
