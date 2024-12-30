@@ -126,6 +126,11 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       return auctions[nftId];
     } 
 
+     function _setMintHubItem(uint256 nftId, mintHubItem memory item) internal {
+        idToMintHubItem[nftId] = item;
+    }
+    
+
 
     /* =========== MAIN  FUNCTIONS ============ */
 
@@ -181,8 +186,9 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
       // Check if the item was previously sold
-    if(idToMintHubItem[nftId].sold){
-      // _soldItems.decrement(); //only decrement only if nft was sold previously
+    mintHubItem  memory item = getMintHubItem(nftId);
+      if(item.sold){
+      _soldItems.decrement(); 
       }
 
       //update the nft details for resale
