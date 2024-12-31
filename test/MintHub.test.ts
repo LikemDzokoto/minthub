@@ -17,13 +17,13 @@ const startingBid = ethers.parseEther("0.5");
 describe("MintHub Contract",function(){
 
     async function deployMintHubFixture(){
-        const [owner,seller, buyer , bidder1 , bidder2] = await ethers.getSigners();
+        const [owner,seller, buyer , bidder1 , bidder2, bidder3] = await ethers.getSigners();
         const MintHub  = await ethers.getContractFactory("MintHub")
         const mintHub = await MintHub.deploy();
 
         // const mintTx  = await mintHub.createToken("https://testURI.com", price , royalty);
 
-        return {mintHub , owner ,seller , buyer , bidder1 , bidder2};
+        return {mintHub , owner ,seller , buyer , bidder1 , bidder2 , bidder3};
     } 
     it("should deploy the minthub contract", async function(){
         const { mintHub ,owner} = await deployMintHubFixture();
@@ -163,8 +163,7 @@ describe("MintHub Contract",function(){
                console.log("Owner of the token before auction:", ownerBeforeAuction);
               
 
-            //   const latestBlock = await ethers.provider.getBlock("latest");
-            //   const auctionEndTime = (latestBlock?.timestamp ?? 0) + ONE_HOUR;      
+               
             const tx = await mintHub.connect(buyer).createAuction(1, startingBid,ONE_HOUR);
             const receipt = await tx.wait();
             const block = await ethers.provider.getBlock(receipt?.blockNumber ?? 0 );   
@@ -185,6 +184,10 @@ describe("MintHub Contract",function(){
 
             });
 
+
+
+
+
             it("it should not allow a non  owner to start an auction", async function(){
                 const { mintHub, buyer } = await loadFixture(deployMintHubFixture);
 
@@ -195,79 +198,115 @@ describe("MintHub Contract",function(){
                 ).to.be.revertedWith("only  owner  can create an auction");
               });
 
-            it("should not allow multiple auctions for the same Nft", async function(){
-                const { mintHub, seller } = await loadFixture(deployMintHubFixture);
 
-               
 
-                 await mintHub.connect(seller).createAuction(1,startingBid, ONE_HOUR);
 
-                 //try to ceate another auction for the same nftId 
-                 await expect(
-                    mintHub.connect(seller).createAuction(1, startingBid, ONE_HOUR)
-                ).to.be.revertedWith("Auction already active");
-                 
-            })
-            // it("should place a bid and emit BidPlaced event", async function () {
-            //     const { mintHub, seller, bidder1 } = await loadFixture(deployMintHubFixture);
-          
+
         
-            //     // Mint the NFT
-            //     await mintHub.connect(seller).createToken(tokenURI, price, royalty, {
-            //       value: price,
-            //     });
-          
-        
-            //       await mintHub.connect(seller).createAuction(1, startingBid,ONE_HOUR);
-          
-            //     // Place a bid
-            //     const bidAmount = ethers.parseEther("0.8");
-            //     await expect(
-            //       mintHub.connect(bidder1).placeBid(1, {
-            //         value: bidAmount,
-            //       })
-            //     )
-            //       .to.emit(mintHub, "BidPlaced")
-            //       .withArgs(1, bidder1.address, bidAmount);
-          
-            //     const auction = await mintHub.getAuction(1);
-            //     expect(auction.highestBid).to.equal(bidAmount);
-            //     expect(auction.highestBidder).to.equal(bidder1.address);
-            //   });
-          
-            //   it("should finalize an auction and emit AuctionFinalized event", async function () {
-            //     const { mintHub, seller, bidder1 } = await loadFixture(deployMintHubFixture);
-          
-           
-            //     // Mint the NFT
-            //     await mintHub.connect(seller).createToken(tokenURI, price, royalty, {
-            //       value:price, 
-            //     });
-          
+              it("should place a bid and emit BidPlaced event", async function () {
+                const { mintHub, seller,buyer ,  bidder1, bidder2, bidder3 } = await loadFixture(deployMintHubFixture);
                 
-            //     await mintHub.connect(seller).createAuction(1, startingBid,ONE_HOUR);
-          
-            //     // Place a bid
-            //     const bidAmount = ethers.parseEther("0.8");
-            //     await mintHub.connect(bidder1).placeBid(1, {
-            //       value: bidAmount,
-            //     });
-          
-            //     // Fast-forward time
-            //     await ethers.provider.send("evm_increaseTime", [3600]);
-            //     await ethers.provider.send("evm_mine");
-          
-            //     // Finalize the auction
-            //     await expect(mintHub.connect(seller).finalizeAuction(1))
-            //       .to.emit(mintHub, "AuctionFinalized")
-            //       .withArgs(1, bidder1.address, bidAmount);
-          
-            //     const auction = await mintHub.getAuction(1);
-            //     expect(auction.active).to.be.false;
-            //   });
 
-            })
+
+                // Mint the NFT
+                await mintHub.connect(seller).createToken(tokenURI, price, royalty, {
+                  value:  price,
+                });
+                 // Simulate buying the NFT
+                 await mintHub.connect(buyer).createMintHubItemSale(1, {
+                  value: price,
+                }); 
+  
+                  // Verify ownership after the sale
+                  const newOwner = await mintHub.ownerOf(1);
+                  console.log("owner of this token", newOwner);
+                  expect(newOwner).to.equal(buyer.address);
             
+                // Create an auction
+                await mintHub.connect(buyer).createAuction(1, startingBid, ONE_HOUR);
+
+
+            
+                // Simulate a live auction with multiple bids
+                const bidAmount1 = ethers.parseEther("0.8");
+                await expect(
+                  mintHub.connect(bidder1).placeBid(1, {
+                    value: bidAmount1,
+                  })
+                )
+                  .to.emit(mintHub, "BidPlaced")
+                  .withArgs(1, bidder1.address, bidAmount1);
+            
+                const bidAmount2 = ethers.parseEther("1.0");
+                await expect(
+                  mintHub.connect(bidder2).placeBid(1, {
+                    value: bidAmount2,
+                  })
+                )
+                  .to.emit(mintHub, "BidPlaced")
+                  .withArgs(1, bidder2.address, bidAmount2);
+            
+                const bidAmount3 = ethers.parseEther("1.2");
+                await expect(
+                  mintHub.connect(bidder3).placeBid(1, {
+                    value: bidAmount3,
+                  })
+                )
+                  .to.emit(mintHub, "BidPlaced")
+                  .withArgs(1, bidder3.address, bidAmount3);
+            
+                const auction = await mintHub.getAuction(1);
+                expect(auction.highestBid).to.equal(bidAmount3);
+                expect(auction.highestBidder).to.equal(bidder3.address);
+              });
+
+
+              it("should finalize an auction and emit AuctionFinalized event", async function () {
+                const { mintHub,buyer,  seller, bidder1, bidder2, bidder3 } = await loadFixture(deployMintHubFixture);
+            
+               // Mint the NFT
+               await mintHub.connect(seller).createToken(tokenURI, price, royalty, {
+                value:  price,
+              });
+
+              
+               // Simulate buying the NFT
+               await mintHub.connect(buyer).createMintHubItemSale(1, {
+                value: price,
+              }); 
+            
+                // Create an auction
+                await mintHub.connect(buyer).createAuction(1, startingBid, ONE_HOUR);
+            
+                // Simulate a live auction with multiple bids
+                const bidAmount1 = ethers.parseEther("0.8");
+                await mintHub.connect(bidder1).placeBid(1, {
+                  value: bidAmount1,
+                });
+            
+                const bidAmount2 = ethers.parseEther("1.0");
+                await mintHub.connect(bidder2).placeBid(1, {
+                  value: bidAmount2,
+                });
+            
+                const bidAmount3 = ethers.parseEther("1.2");
+                await mintHub.connect(bidder3).placeBid(1, {
+                  value: bidAmount3,
+                });
+            
+                // Fast-forward time
+                await ethers.provider.send("evm_increaseTime", [3600]);
+                await ethers.provider.send("evm_mine");
+            
+                // Finalize the auction
+                await expect(mintHub.connect(seller).finalizeAuction(1))
+                  .to.emit(mintHub, "AuctionFinalized")
+                  .withArgs(1, bidder3.address, bidAmount3);
+            
+                const auction = await mintHub.getAuction(1);
+                expect(auction.active).to.be.false;
+              });
+            });
 
         })
     

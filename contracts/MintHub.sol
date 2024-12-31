@@ -163,13 +163,21 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       require(msg.value == listingPrice , "nft price must be equal to listing Price");
 
 
-     idToMintHubItem[nftId] =  mintHubItem({
-      nftId: nftId,
-      seller: payable(msg.sender),
-      owner : payable(address(this)),
-      price: price,
-      sold: false
-    });
+    //  idToMintHubItem[nftId] =  mintHubItem({
+    //   nftId: nftId,
+    //   seller: payable(msg.sender),
+    //   owner : payable(address(this)),
+    //   price: price,
+    //   sold: false
+    // });
+    
+    _setMintHubItem(nftId, mintHubItem({
+            nftId: nftId,
+            seller: payable(msg.sender),
+            owner: payable(address(this)),
+            price: price,
+            sold: false
+        }));
 
      _transfer(msg.sender, address(this), nftId);
      emit MintHubItemCreated(nftId,  msg.sender,address(this), price, false);
@@ -192,10 +200,20 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
       }
 
       //update the nft details for resale
-      idToMintHubItem[nftId].sold = false;
-      idToMintHubItem[nftId].price = price;
-      idToMintHubItem[nftId].seller = payable(msg.sender);
-      idToMintHubItem[nftId].owner = payable(address(this));
+      // idToMintHubItem[nftId].sold = false;
+      // idToMintHubItem[nftId].price = price;
+      // idToMintHubItem[nftId].seller = payable(msg.sender);
+      // idToMintHubItem[nftId].owner = payable(address(this));
+
+      _setMintHubItem(nftId, mintHubItem({
+            nftId: nftId,
+            seller: payable(msg.sender),
+            owner: payable(address(this)),
+            price: price,
+            sold: false
+        }));
+        
+
 
 
       //transfer the nft back to minthub contract
@@ -206,29 +224,39 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
     function createMintHubItemSale(uint256 nftId) public payable nonReentrant {
-      mintHubItem storage item = idToMintHubItem[nftId];
-
-      uint256 price = item.price;
-      address OriginalSeller = item.seller; 
-      uint256 royalty = (price * royalties[nftId]) /10_000;
-
-      require(msg.value == price , "incorrect pricing");
-
-      //check  if the nft is available for sale
+      mintHubItem memory item = getMintHubItem(nftId);
+      
       require(item.owner == address(this),"nft is not available for sale");
 
       require(!item.sold,"NFT has already been sold");
+      require(msg.value == item.price , "incorrect pricing");
 
-      //updated item details
-      item.owner = payable(msg.sender);
-      item.sold = true ;
-      item.seller = payable(address(0));  // Reset seller to zero address
+      
+      address OriginalSeller = item.seller; 
+      uint256 royalty = (item.price * royalties[nftId]) /10_000;
+
+  
+    
+      // //updated item details
+      // item.owner = payable(msg.sender);
+      // item.sold = true ;
+      // item.seller = payable(address(0)); 
+
+       _setMintHubItem(nftId, mintHubItem({
+            nftId: nftId,
+            seller: payable(address(0)),
+            owner: payable(msg.sender),
+            price: item.price,
+            sold: true
+        }));
+        
+
 
       _soldItems.increment();
 
       _transfer(address(this), msg.sender, nftId);
 
-      emit mintHubItemSold(nftId , OriginalSeller, msg.sender, price);
+      emit mintHubItemSold(nftId , OriginalSeller, msg.sender, item.price);
 
 
 
@@ -246,17 +274,11 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
     /* =========== AUCTION FUNCTIONS ============ */
 
     function createAuction(uint256 nftId , uint256 startingBid , uint256 duration) public {
-    //  require(idToMintHubItem[nftId].owner == msg.sender ||idToMintHubItem[nftId].seller  == msg.sender , "Only the current owner can create an auction");
-      // Ensure that there is no active auction for this 
-      require(ownerOf(nftId) == msg.sender , "only  owner  can create an auction");
-    
+       require(getMintHubItem(nftId).owner == msg.sender, "only  owner  can create an auction");
+      require(!auctions[nftId].active, "Already active");
 
-      require(!auctions[nftId].active, "Auction already active");
+       require(startingBid > 0 && duration > 0, "Invalid parameters");
 
-      require(startingBid > 0 , "startingBidd must be greater than zero");
-      require(duration > 0, "duration of auction is not valid");
-
-      require(isApprovedForAll(msg.sender, address(this)) || getApproved(nftId) == address(this), "Marketplace not approved to transfer NFT");
 
       // Transfer the NFT from the seller to the marketplace contract
     _transfer(msg.sender, address(this), nftId);
@@ -290,28 +312,20 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
   
     function placeBid(uint256 nftId) public payable nonReentrant{
-      require(ownerOf(nftId) == msg.sender , "only  owner  can place bid");
-      require(isApprovedForAll(msg.sender, address(this)) || getApproved(nftId) == address(this), "Marketplace not approved to transfer NFT");
-
       Auction storage auction = auctions[nftId];
-      require(auction.active, "Auction is not active");
-      require(block.timestamp < auction.endTime, "Auction has ended");
-      require(msg.value > auction.highestBid, "Bid must be higher than the current highest bid");
-      require(msg.value > 0 , "Bid must be greater than 0");
-        
+      require(auction.active && block.timestamp < auction.endTime, "Invalid auction");
+      require(msg.value > auction.highestBid && msg.value > 0, "Invalid bid");
 
-      //buffer time to avoid snipping 
-      uint256 bufferTime = 2 minutes;
-
-      address payable previousBidder = auction.highestBidder;
-      uint256 previousBid = auction.highestBid;
+      
 
       // Check if the auction is ending soon and extend the end time if necessary
-      if (auction.endTime - block.timestamp < bufferTime) {
-          auction.endTime += bufferTime; // Extend the auction by 2 minutes
+        if (auction.endTime - block.timestamp < 2 minutes) {
+            auction.endTime += 2 minutes;
+            emit AuctionExtended(nftId, auction.endTime);
+        }
 
-          emit AuctionExtended(nftId, auction.endTime);
-          }
+         address payable previousBidder = auction.highestBidder;
+         uint256 previousBid = auction.highestBid;
 
 
         auction.highestBid = msg.value;
@@ -329,21 +343,14 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
     function finalizeAuction(uint256 nftId) public nonReentrant(){
-      require(ownerOf(nftId) == msg.sender , "only  owner  can finalize auction");
-      require(isApprovedForAll(msg.sender, address(this)) || getApproved(nftId) == address(this), "Marketplace not approved to transfer NFT");
-
       Auction storage auction = auctions[nftId];
       require(auction.nftId == nftId , "Auction does not exist");
-      require(block.timestamp >= auction.endTime, "Auction has not ended yet");
-      require(auction.active, "Auction is not active");
-
+      require(auction.active && block.timestamp >= auction.endTime, "Cannot finalize");
 
       auction.active = false;
 
         if (auction.highestBid > 0) {
             uint256 royalty = (auction.highestBid * royalties[nftId]) / 10_000;
-            // auction.seller.transfer(auction.highestBid - royalty);
-            // payable(creators[nftId]).transfer(royalty);
 
 
             (bool sellerPaid,) = auction.seller.call{value: auction.highestBid - royalty}("");
@@ -365,14 +372,10 @@ contract MintHub is ERC721URIStorage , ReentrancyGuard{
 
 
     function cancelAuction(uint256 nftId) public {
-      require(ownerOf(nftId) == msg.sender , "only  owner  can cancel  an auction");
       Auction storage auction = auctions[nftId];
-      require(auction.active ,"Auction is not active");
-      require(auction.seller == msg.sender, "Only the seller can cancel the auction");
-      require(auction.highestBid == 0 , "cannot cancel an auction with bids");
+      require(auction.active && auction.seller == msg.sender, "Cannot cancel");
+      require(auction.highestBid == 0 && block.timestamp < auction.endTime, "Invalid state");
 
-      //check if the auction has already ended 
-      require(block.timestamp < auction.endTime, "cannot cancel an Auction that has ended");
 
 
       auction.active = false;
