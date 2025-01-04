@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract MintHub is ERC721URIStorage, ReentrancyGuard, AccessControl, Pausable {
+contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable{
     using Counters for Counters.Counter;
     
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -267,7 +267,7 @@ contract MintHub is ERC721URIStorage, ReentrancyGuard, AccessControl, Pausable {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, AccessControl)
+        override(ERC721URIStorage, AccessControl)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
