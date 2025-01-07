@@ -44,6 +44,7 @@ contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable
     mapping(uint256 => NFTItem) private _nfts;
     mapping(uint256 => Auction) private _auctions;
     mapping(address => uint256) private _escrowBalances;
+    // mapping(uint256 => address) private nftOwners;
     
     event NFTListed(uint256 indexed nftId, address seller, uint256 price);
     event NFTSold(uint256 indexed nftId, address seller, address buyer, uint256 price);
@@ -111,7 +112,9 @@ contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable
         
         _safeMint(msg.sender, newNftId);
         _setTokenURI(newNftId, tokenURI);
-        
+
+        _transfer(msg.sender, address(this), newNftId);
+
         _nfts[newNftId] = NFTItem({
             nftId: newNftId,
             creator: payable(msg.sender),
@@ -123,7 +126,8 @@ contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable
             isAuction: false
         });
         
-        _transfer(msg.sender, address(this), newNftId);
+        
+        
         emit NFTListed(newNftId, msg.sender, price);
         
         return newNftId;
@@ -136,8 +140,12 @@ contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable
         whenNotPaused 
     {
         NFTItem storage nft = _nfts[nftId];
+         
         require(!nft.sold && !nft.isAuction, "NFT not available");
         require(msg.value == nft.price, "Incorrect price");
+
+        
+
         
         uint256 royaltyAmount = (msg.value * nft.royalty) / 10000;
         uint256 platformAmount = (msg.value * platformFee) / 10000;
@@ -158,7 +166,9 @@ contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable
         external
         whenNotPaused
     {
-        require(ownerOf(nftId) == msg.sender, "Not owner");
+        
+        require(_nfts[nftId].seller == msg.sender || _nfts[nftId].owner == payable(address(this)), "Not owner");
+    
         require(duration > 0 && duration <= 7 days, "Invalid duration");
         
         _transfer(msg.sender, address(this), nftId);

@@ -77,12 +77,15 @@ describe("MintHub Contract", function () {
     });
   });
 
-  // Auction Scenarios
+ 
   describe("Auction Operations", function () {
     it("should allow the owner to start an auction", async function () {
       const { mintHub, seller } = await deployMintHubFixture();
 
       await mintHub.connect(seller).mintNFT(tokenURI, price, royalty, { value: price });
+
+
+      
 
       const tx = await mintHub.connect(seller).createAuction(1, startingBid,ONE_HOUR);
       const receipt = await tx.wait();
