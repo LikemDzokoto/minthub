@@ -16,6 +16,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.3",
     "dotenv": "^16.4.7",
-    "hardhat-deploy": "^0.14.0"
+    "hardhat-deploy": "^0.14.0",
+    "hardhat-gas-reporter": "^2.2.2"
   }
 }
