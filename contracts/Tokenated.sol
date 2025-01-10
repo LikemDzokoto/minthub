@@ -44,6 +44,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
     mapping(uint256 => NFTItem) private _nfts;
     mapping(uint256 => Auction) private _auctions;
     mapping(address => uint256) private _escrowBalances;
+    mapping(address => bool) private _blackListedUsers;
     // mapping(uint256 => address) private nftOwners;
     
     event NFTListed(uint256 indexed nftId, address seller, uint256 price);
@@ -54,6 +55,14 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
     event RoyaltyPaid(uint256 indexed nftId, address creator, uint256 amount);
     event FeeUpdated(string feeType, uint256 newAmount);
     event FundsWithdrawn(address indexed recipient, uint256 amount);
+    event Blacklisted(address indexed user);
+    event UnBlacklisted(address indexed user);
+
+    modifier notBlacklisted() {
+        require(!_blackListedUsers[msg.sender], "You are blacklisted");
+        _;
+    }
+
     
     constructor() ERC721("Tokenated", "TKH") {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -68,6 +77,15 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
     
     function addModerator(address account) external onlyRole(ADMIN_ROLE) {
         grantRole(MODERATOR_ROLE, account);
+    }
+
+    function blackList(address  account) external onlyRole(ADMIN_ROLE){
+         _blackListedUsers[account] = true;
+        emit Blacklisted( account);
+    }
+    function unBlackList(address  account) external onlyRole(ADMIN_ROLE){
+        _blackListedUsers[account] = false;
+        emit UnBlacklisted( account);
     }
     
     function setListingPrice(uint256 newPrice) external onlyRole(ADMIN_ROLE) {
@@ -103,7 +121,8 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         payable 
         whenNotPaused 
         returns (uint256) 
-    {
+    {   
+        require(!_blackListedUsers[msg.sender],"address is blacklisted");
         require(msg.value == listingPrice, "Incorrect listing fee");
         require(royalty <= 1000, "Royalty cannot exceed 10%");
         
@@ -140,7 +159,8 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         whenNotPaused 
     {
         NFTItem storage nft = _nfts[nftId];
-         
+        
+        require(!_blackListedUsers[msg.sender],"address is blacklisted");
         require(!nft.sold && !nft.isAuction, "NFT not available");
         require(msg.value == nft.price, "Incorrect price");
 
@@ -166,7 +186,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         external
         whenNotPaused
     {
-        
+        require(!_blackListedUsers[msg.sender],"address is blacklisted");
         require(_nfts[nftId].seller == msg.sender || _nfts[nftId].owner == payable(address(this)), "Not owner");
     
         require(duration > 0 && duration <= 7 days, "Invalid duration");
@@ -195,6 +215,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         whenNotPaused
     {
         Auction storage auction = _auctions[nftId];
+        require(!_blackListedUsers[msg.sender],"address is blacklisted");
         require(auction.active && block.timestamp < auction.endTime, "Auction ended/invalid");
         require(msg.value > auction.highestBid && msg.value >= auction.startingBid, "Bid too low");
         

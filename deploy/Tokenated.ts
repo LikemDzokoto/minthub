@@ -21,14 +21,14 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     let tx;
 
 
-  await deploy('MintHub', {
+  await deploy('Tokenated', {
     from: deployer,
     args: [],
     // log: true,
     autoMine: true,
     deterministicDeployment: true,
   }).then((res: { address: any; newlyDeployed: any; }) => {
-    console.log("MintHub deployed to: %s, %s", res.address, res.newlyDeployed);
+    console.log("Tokenated deployed to: %s, %s", res.address, res.newlyDeployed);
   });
   
 
