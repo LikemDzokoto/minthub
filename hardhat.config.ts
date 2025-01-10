@@ -1,7 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-deploy";
-import "hardhat-gas-reporter";
+
 
 import * as dotenv from "dotenv";
 
@@ -28,6 +28,8 @@ const config: HardhatUserConfig = {
     currency: "USD",
     gasPrice: 21,
     outputFile: "gas-report.txt",
+    coinmarketcap:process.env.COINMARKETCAP_API,
+    token:"ETH"
 
   },
 
@@ -47,7 +49,7 @@ const config: HardhatUserConfig = {
 
 etherscan: {
   apiKey: {
-    baseSepolia: "getanAPIKEYLOL"
+    baseSepolia: process.env.BASESCAN_API as string,
   },
   customChains:[
     {

@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable{
+contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable{
     using Counters for Counters.Counter;
     
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -55,7 +55,7 @@ contract MintHub is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausable
     event FeeUpdated(string feeType, uint256 newAmount);
     event FundsWithdrawn(address indexed recipient, uint256 amount);
     
-    constructor() ERC721("MintHub", "MHT") {
+    constructor() ERC721("Tokenated", "TKH") {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(ADMIN_ROLE, msg.sender);
     }
