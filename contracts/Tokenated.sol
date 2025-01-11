@@ -58,10 +58,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
     event Blacklisted(address indexed user);
     event UnBlacklisted(address indexed user);
 
-    modifier notBlacklisted() {
-        require(!_blackListedUsers[msg.sender], "You are blacklisted");
-        _;
-    }
+    
 
     
     constructor() ERC721("Tokenated", "TKH") {
@@ -134,6 +131,8 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
 
         _transfer(msg.sender, address(this), newNftId);
 
+        _approve(msg.sender, newNftId);
+
         _nfts[newNftId] = NFTItem({
             nftId: newNftId,
             creator: payable(msg.sender),
@@ -187,11 +186,14 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         whenNotPaused
     {
         require(!_blackListedUsers[msg.sender],"address is blacklisted");
-        require(_nfts[nftId].seller == msg.sender || _nfts[nftId].owner == payable(address(this)), "Not owner");
-    
+ 
+        require(ownerOf(nftId) == address(this), "Contract does not hold the NFT");
+        require(_nfts[nftId].seller == msg.sender, "Only the seller can create an auction");
+        require(!_nfts[nftId].sold, "NFT already sold");
+
         require(duration > 0 && duration <= 7 days, "Invalid duration");
-        
-        _transfer(msg.sender, address(this), nftId);
+
+       
         
         _auctions[nftId] = Auction({
             nftId: nftId,
@@ -273,8 +275,11 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
     
     // View Functions
     
+
     function getNFT(uint256 nftId) external view returns (NFTItem memory) {
-        return _nfts[nftId];
+        NFTItem memory nft = _nfts[nftId];
+        nft.owner = payable(ownerOf(nftId)); 
+        return nft;
     }
     
     function getAuction(uint256 nftId) external view returns (Auction memory) {
