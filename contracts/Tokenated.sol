@@ -50,6 +50,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
     mapping(uint256 => Auction) private _auctions;
     mapping(address => uint256) private _escrowBalances;
     mapping(address => bool) private _blackListedUsers;
+    mapping(string => bool) private _mintedTokenURIs;
     
     
     event NFTListed(uint256 indexed nftId, address seller, uint256 price);
@@ -64,6 +65,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
     event UnBlacklisted(address indexed user);
     event PriceUpdated(uint256 indexed nftId, uint256 newPrice);
     event ListingCancelled(uint256 indexed nftId, address indexed seller);
+    event AuctionCancelled(uint256 indexed nftId, address indexed seller);
 
 
     modifier validNFT(uint256 nftId) {
@@ -76,9 +78,6 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         _;
     }
     
-
-    
-
     
     constructor() ERC721("Tokenated", "TKH") {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -142,6 +141,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         require(msg.value == listingPrice, "Incorrect listing fee");
         require(royalty <= 1000, "Royalty cannot exceed 10%");
         require(bytes(tokenURI).length > 0, "Empty URI");
+        require(!_mintedTokenURIs[tokenURI],"Token already minted");
         require(price > 0, "Price must be greater than 0");
         
         
@@ -151,9 +151,9 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         _safeMint(msg.sender, newNftId);
         _setTokenURI(newNftId, tokenURI);
 
-        _transfer(msg.sender, address(this), newNftId);
+        _mintedTokenURIs[tokenURI] = true;
 
-      
+        _transfer(msg.sender, address(this), newNftId);
 
         _nfts[newNftId] = NFTItem({
             nftId: newNftId,
@@ -166,8 +166,6 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
             isAuction: false,
             isListed: true
         });
-        
-        
         
         emit NFTListed(newNftId, msg.sender, price);
         
@@ -299,6 +297,27 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
             emit AuctionEnded(nftId, address(0), 0);
         }
     }
+
+    function cancelAuction(uint256 nftId) 
+    external 
+    nonReentrant 
+    whenNotPaused 
+    validNFT(nftId) 
+    onlyNFTOwner(nftId)
+    {
+    Auction storage auction = _auctions[nftId];
+
+    require(auction.active, "Auction is not active");
+    require(auction.highestBid == 0, "Cannot cancel after a bid has been placed");
+
+    auction.active = false;
+    _nfts[nftId].isAuction = false;
+
+    _transfer(address(this), auction.seller, nftId);
+
+    emit AuctionCancelled(nftId, auction.seller);
+    }   
+
 
     function updatePrice(uint256 nftId, uint256 newPrice) 
         external 
