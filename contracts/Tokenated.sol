@@ -184,7 +184,7 @@ contract Tokenated is  ERC721URIStorage , ReentrancyGuard, AccessControl, Pausab
         NFTItem storage nft = _nfts[nftId];
         
         require(!_blackListedUsers[msg.sender],"address is blacklisted");
-        require(!nft.sold && !nft.isAuction && !nft.isListed, "NFT not available");
+        require(!nft.sold && !nft.isAuction && nft.isListed, "NFT not available");
         require(msg.value == nft.price, "Incorrect price");
 
         uint256 royaltyAmount = (msg.value * nft.royalty) / 10000;

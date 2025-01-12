@@ -7,8 +7,9 @@
   const price = ethers.parseEther("0.001");
   const royalty = 500; // Royalty of 5% in basis points
   const tokenURI = "https://testURI.com";
-  const ONE_HOUR = 3600; // Auction duration in seconds
+  const ONE_HOUR = 3600;
   const startingBid = ethers.parseEther("0.5");
+  const MIN_BID = ethers.parseEther("0.01");
 
   describe("Tokenated Contract", function () {
     async function deployMintHubFixture() {
@@ -49,7 +50,7 @@
       });
     });
 
-    // Direct Sale Scenarios
+    // Direct Sale Scenario
     describe("Direct NFT Sale", function () {
       it("should allow a direct sale of an NFT", async function () {
         const { tokenated, seller, buyer } = await deployMintHubFixture();
@@ -85,7 +86,7 @@
         await tokenated.connect(seller).mintNFT(tokenURI, price, royalty, { value: price });
 
 
-        const tx = await tokenated.connect(seller).createAuction(1, startingBid,ONE_HOUR);
+        const tx = await tokenated.connect(seller).createAuction(1, startingBid,ONE_HOUR, MIN_BID);
         const receipt = await tx.wait();
         const block = await ethers.provider.getBlock(receipt?.blockNumber ?? 0 );   
         const auctionEndTime = (block?.timestamp ?? 0 ) + ONE_HOUR;
@@ -107,7 +108,7 @@
         
 
         await expect(
-          tokenated.connect(buyer).createAuction(1, startingBid, ONE_HOUR)
+          tokenated.connect(buyer).createAuction(1, startingBid,ONE_HOUR, MIN_BID)
         ).to.be.revertedWith("Only the seller can create an auction");
       });
 
@@ -118,7 +119,7 @@
 
     
 
-        await tokenated.connect(seller).createAuction(1, startingBid, ONE_HOUR);
+        await tokenated.connect(seller).createAuction(1, startingBid,ONE_HOUR, MIN_BID);
 
         await expect(
           tokenated.connect(bidder1).placeBid(1, { value: ethers.parseEther("0.8") })
@@ -138,7 +139,7 @@
 
         await tokenated.connect(seller).mintNFT(tokenURI, price, royalty, { value: price });
 
-        await tokenated.connect(seller).createAuction(1, startingBid, ONE_HOUR);
+        await tokenated.connect(seller).createAuction(1, startingBid,ONE_HOUR, MIN_BID);
 
         await tokenated.connect(bidder1).placeBid(1, { value: ethers.parseEther("0.8") });
         
