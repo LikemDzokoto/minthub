@@ -155,28 +155,11 @@
       });
     });
 
-    // Escrow Balance Withdrawal
-    // describe("Escrow Balance", function () {
-    //   it("should allow users to withdraw their escrow balance", async function () {
-    //     const { tokenated, seller, buyer } = await deployMintHubFixture();
-
-    //     await tokenated.connect(seller).mintNFT(tokenURI, price, royalty, { value: price });
-    //     await tokenated.connect(buyer).buyNFT(1, { value: price });
-
-    //     const initialBalance = await ethers.provider.getBalance(seller.address);
-
-    //     await expect(tokenated.connect(seller).withdrawBalance())
-    //       .to.emit(tokenated, "FundsWithdrawn")
-    //       .withArgs(seller.address, price);
-
-    //     const finalBalance = await ethers.provider.getBalance(seller.address);
-    //     expect(finalBalance).to.be.above(initialBalance);
-    //   });
-    // });
+  
     it("should allow users to withdraw their escrow balance", async function () {
       const { tokenated, seller, buyer } = await deployMintHubFixture();
 
-     const platformFee = 250;  // 2.5%
+     const platformFee = 250; 
   
     
       await tokenated.connect(seller).mintNFT(tokenURI, price, royalty, { value: price });
@@ -190,7 +173,7 @@
     
       await expect(tokenated.connect(seller).withdrawBalance())
         .to.emit(tokenated, "FundsWithdrawn")
-        .withArgs(seller.address, sellerAmount); // Update to expect the seller's share instead of the full price
+        .withArgs(seller.address, sellerAmount); 
     
       const finalBalance = await ethers.provider.getBalance(seller.address);
       expect(finalBalance).to.be.above(initialBalance);
