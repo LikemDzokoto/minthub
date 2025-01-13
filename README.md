@@ -14,7 +14,7 @@
 
 | Contract Name            | Addresses                                  |
 | ------------------------ | ------------------------------------------ |
-|  Tokenated.sol           | https://sepolia.basescan.org/address/0x15f76333BD08418558A6F35c0866616616633b08                                           |
+|  Tokenated.sol           | https://base-sepolia.blockscout.com/address/0x15f76333BD08418558A6F35c0866616616633b08                                          |
  
 
  
