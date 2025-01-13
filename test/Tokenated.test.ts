@@ -354,7 +354,7 @@
 
     const newPrice = ethers.parseEther("2");
     await expect(tokenated.connect(seller).updatePrice(1, newPrice))
-        .to.be.revertedWith("NFT not listed");
+        .to.be.revertedWith("NFT not listed ");
   })
 
   it("should not allow a non-owner to cancel a listing", async function () {
